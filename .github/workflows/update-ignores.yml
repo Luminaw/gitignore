@@ -1,0 +1,33 @@
+name: Update Ignores Submodule
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday at 00:00 UTC
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0 # Full history for pushing
+      - name: Update submodule
+        run: |
+          git submodule update --remote --merge ignores
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          if [[ -n $(git status --porcelain) ]]; then
+            git add ignores
+            git commit -m "chore: update gitignore submodule"
+            git push
+          else
+            echo "No changes to commit"
+          fi

@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use rust_embed::RustEmbed;
 use std::fs;
 use std::fs::OpenOptions;
@@ -12,9 +12,29 @@ use std::path::{Path, PathBuf};
 struct GitignoreAssets;
 
 #[derive(Parser)]
+#[command(name = "gitignore")]
+#[command(author = "Luminaw")]
+#[command(version = "0.1.0")]
+#[command(about = "A simple gitignore generator CLI", long_about = None)]
 struct Args {
-    action: String,
-    name: Option<String>,
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Add a gitignore template to the current directory
+    Add {
+        /// The name of the template to add (e.g., Rust, Python)
+        name: String,
+    },
+    /// List all available templates
+    List,
+    /// Create a custom template from a local file
+    Create {
+        /// The path to the local file to use as a template
+        path: String,
+    },
 }
 
 fn get_config_dir() -> PathBuf {
@@ -24,16 +44,8 @@ fn get_config_dir() -> PathBuf {
 
 fn main() {
     let args = Args::parse();
-    match args.action.as_str() {
-        "add" => {
-            let name = match args.name {
-                Some(n) => n,
-                None => {
-                    eprintln!("Error: 'add' command requires a template name.");
-                    return;
-                }
-            };
-
+    match args.command {
+        Commands::Add { name } => {
             let template_name = if name.ends_with(".gitignore") {
                 name.clone()
             } else {
@@ -89,7 +101,7 @@ fn main() {
             }
         }
 
-        "list" => {
+        Commands::List => {
             println!("--- Embedded Templates ---");
             for file in GitignoreAssets::iter() {
                 println!("{}", file);
@@ -109,18 +121,10 @@ fn main() {
                 }
             }
         }
-        "create" => {
-            let source_path_str = match args.name {
-                Some(n) => n,
-                None => {
-                    eprintln!("Error: 'create' command requires a source file path.");
-                    return;
-                }
-            };
-
-            let source_path = Path::new(&source_path_str);
+        Commands::Create { path } => {
+            let source_path = Path::new(&path);
             if !source_path.exists() {
-                eprintln!("Error: Source file '{}' not found.", source_path_str);
+                eprintln!("Error: Source file '{}' not found.", path);
                 return;
             }
 
@@ -135,7 +139,6 @@ fn main() {
             fs::copy(source_path, &dest_path).expect("Failed to copy template to config directory");
             println!("Successfully created custom template: {}", filename.to_string_lossy());
         }
-        _ => println!("Unknown action"),
     }
 }
 
